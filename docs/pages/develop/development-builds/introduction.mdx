@@ -1,49 +1,1544 @@
----
-title: Introduction to development builds
-sidebar_title: Introduction
-description: Why use development builds and how to get started.
-searchRank: 98
-searchPosition: 1
-hideTOC: true
-hasVideoLink: true
----
+const ComponentFunction = function() {
+  // @section:imports @depends:[]
+  const React = require('react');
+  const { useState, useEffect, useContext, useMemo, useCallback } = React;
+  const { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Platform, StatusBar, ActivityIndicator, KeyboardAvoidingView, FlatList, Image, Dimensions } = require('react-native');
+  const { MaterialIcons } = require('@expo/vector-icons');
+  const { createBottomTabNavigator } = require('@react-navigation/bottom-tabs');
+  // @end:imports
 
-import { BookOpen02Icon } from '@expo/styleguide-icons/outline/BookOpen02Icon';
+  // @section:theme @depends:[]
+  const storageStrategy = 'local';
+  const primaryColor = '#1A1A2E';
+  const accentColor = '#16213E';
+  const backgroundColor = '#0F0F23';
+  const cardColor = '#1A1A2E';
+  const textPrimary = '#FFFFFF';
+  const textSecondary = '#B0B0B0';
+  const designStyle = 'professional';
+  // @end:theme
 
-import { BoxLink } from '~/ui/components/BoxLink';
-import { Collapsible } from '~/ui/components/Collapsible';
-import { VideoBoxLink } from '~/ui/components/VideoBoxLink';
+  // @section:navigation-setup @depends:[]
+  const Tab = createBottomTabNavigator();
+  // @end:navigation-setup
 
-**Development build** is the term that we use for a "Debug" build of an app that includes the [`expo-dev-client`](/versions/latest/sdk/dev-client/) library. This library augments the built-in React Native development tooling with additional capabilities, such as support for inspecting network requests and a "launcher" UI that lets you switch between different development servers (such as between a server running on your machine or a teammate's machine) and deployments of your app (such as published updates with EAS Update).
+  // @section:ThemeContext @depends:[theme]
+  const ThemeContext = React.createContext();
+  const ThemeProvider = function(props) {
+    const darkModeState = useState(false);
+    const darkMode = darkModeState[0];
+    const setDarkMode = darkModeState[1];
+    
+    const lightTheme = useMemo(function() {
+      return {
+        colors: {
+          primary: primaryColor,
+          accent: accentColor,
+          background: backgroundColor,
+          card: cardColor,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          border: '#333344',
+          success: '#10B981',
+          error: '#EF4444',
+          warning: '#F59E0B'
+        }
+      };
+    }, []);
+    
+    const darkTheme = useMemo(function() {
+      return {
+        colors: {
+          primary: primaryColor,
+          accent: accentColor,
+          background: '#0A0A1A',
+          card: '#1A1A2E',
+          textPrimary: '#FFFFFF',
+          textSecondary: '#B0B0B0',
+          border: '#333344',
+          success: '#10B981',
+          error: '#EF4444',
+          warning: '#F59E0B'
+        }
+      };
+    }, []);
+    
+    const theme = darkMode ? darkTheme : lightTheme;
+    
+    const toggleDarkMode = useCallback(function() {
+      setDarkMode(function(prev) { return !prev; });
+    }, []);
+    
+    const value = useMemo(function() {
+      return { theme: theme, darkMode: darkMode, toggleDarkMode: toggleDarkMode, designStyle: designStyle };
+    }, [theme, darkMode, toggleDarkMode]);
+    
+    return React.createElement(ThemeContext.Provider, { value: value }, props.children);
+  };
+  
+  const useTheme = function() { return useContext(ThemeContext); };
+  // @end:ThemeContext
 
-<Collapsible summary="Difference between Expo Go and development builds">
+  // @section:HomeScreen-state @depends:[ThemeContext]
+  const useHomeScreenState = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+    const projectsState = useState([
+      { id: 1, name: 'Hip Hop Beat', bpm: 140, tracks: 8, duration: '3:45', lastModified: '2 hours ago' },
+      { id: 2, name: 'Vocal Recording', bpm: 120, tracks: 12, duration: '4:20', lastModified: '1 day ago' },
+      { id: 3, name: 'Electronic Mix', bpm: 128, tracks: 16, duration: '5:10', lastModified: '3 days ago' }
+    ]);
+    const projects = projectsState[0];
+    const setProjects = projectsState[1];
+    
+    const showNewProjectModalState = useState(false);
+    const showNewProjectModal = showNewProjectModalState[0];
+    const setShowNewProjectModal = showNewProjectModalState[1];
+    
+    const newProjectNameState = useState('');
+    const newProjectName = newProjectNameState[0];
+    const setNewProjectName = newProjectNameState[1];
+    
+    const newProjectBpmState = useState('120');
+    const newProjectBpm = newProjectBpmState[0];
+    const setNewProjectBpm = newProjectBpmState[1];
+    
+    return {
+      theme: theme,
+      projects: projects,
+      setProjects: setProjects,
+      showNewProjectModal: showNewProjectModal,
+      setShowNewProjectModal: setShowNewProjectModal,
+      newProjectName: newProjectName,
+      setNewProjectName: setNewProjectName,
+      newProjectBpm: newProjectBpm,
+      setNewProjectBpm: setNewProjectBpm
+    };
+  };
+  // @end:HomeScreen-state
 
-[Expo Go](https://expo.dev/go) is a playground app for students and learners to get started quickly. It comes with a fixed set of native libraries built in, so you can write JavaScript code and see changes instantly without building a native app yourself. A development build is a fully featured development environment for working on your production-grade Expo apps.
+  // @section:HomeScreen-handlers @depends:[HomeScreen-state]
+  const homeScreenHandlers = {
+    createProject: function(state) {
+      if (!state.newProjectName.trim()) {
+        Platform.OS === 'web' ? window.alert('Please enter a project name') : Alert.alert('Error', 'Please enter a project name');
+        return;
+      }
+      
+      const newProject = {
+        id: Date.now(),
+        name: state.newProjectName,
+        bpm: parseInt(state.newProjectBpm) || 120,
+        tracks: 0,
+        duration: '0:00',
+        lastModified: 'Just created'
+      };
+      
+      state.setProjects(function(prev) { return [newProject].concat(prev); });
+      state.setNewProjectName('');
+      state.setNewProjectBpm('120');
+      state.setShowNewProjectModal(false);
+      
+      Platform.OS === 'web' ? window.alert('Project created successfully!') : Alert.alert('Success', 'Project created successfully!');
+    },
+    
+    deleteProject: function(state, projectId) {
+      const confirmDelete = function() {
+        state.setProjects(function(prev) {
+          return prev.filter(function(project) { return project.id !== projectId; });
+        });
+      };
+      
+      if (Platform.OS === 'web') {
+        if (window.confirm('Are you sure you want to delete this project?')) {
+          confirmDelete();
+        }
+      } else {
+        Alert.alert('Confirm Delete', 'Are you sure you want to delete this project?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+        ]);
+      }
+    }
+  };
+  // @end:HomeScreen-handlers
 
-</Collapsible>
+  // @section:HomeScreen-ProjectCard @depends:[styles]
+  const renderProjectCard = function(project, theme, onDelete) {
+    return React.createElement(View, {
+      key: project.id,
+      style: [styles.projectCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }],
+      componentId: 'project-card-' + project.id
+    },
+      React.createElement(View, { style: styles.projectHeader },
+        React.createElement(Text, { style: [styles.projectName, { color: theme.colors.textPrimary }], componentId: 'project-name-' + project.id }, project.name),
+        React.createElement(TouchableOpacity, {
+          onPress: function() { onDelete(project.id); },
+          style: styles.deleteButton,
+          componentId: 'delete-project-' + project.id
+        },
+          React.createElement(MaterialIcons, { name: 'delete', size: 20, color: theme.colors.error })
+        )
+      ),
+      React.createElement(View, { style: styles.projectStats },
+        React.createElement(View, { style: styles.statItem },
+          React.createElement(MaterialIcons, { name: 'speed', size: 16, color: theme.colors.textSecondary }),
+          React.createElement(Text, { style: [styles.statText, { color: theme.colors.textSecondary }] }, project.bpm + ' BPM')
+        ),
+        React.createElement(View, { style: styles.statItem },
+          React.createElement(MaterialIcons, { name: 'queue-music', size: 16, color: theme.colors.textSecondary }),
+          React.createElement(Text, { style: [styles.statText, { color: theme.colors.textSecondary }] }, project.tracks + ' tracks')
+        ),
+        React.createElement(View, { style: styles.statItem },
+          React.createElement(MaterialIcons, { name: 'access-time', size: 16, color: theme.colors.textSecondary }),
+          React.createElement(Text, { style: [styles.statText, { color: theme.colors.textSecondary }] }, project.duration)
+        )
+      ),
+      React.createElement(Text, { style: [styles.lastModified, { color: theme.colors.textSecondary }] }, 'Modified: ' + project.lastModified),
+      React.createElement(TouchableOpacity, {
+        style: [styles.openButton, { backgroundColor: theme.colors.primary }],
+        componentId: 'open-project-' + project.id
+      },
+        React.createElement(Text, { style: styles.openButtonText }, 'Open Project')
+      )
+    );
+  };
+  // @end:HomeScreen-ProjectCard
 
-<Collapsible summary="Native app and JavaScript bundle">
+  // @section:HomeScreen-Modal @depends:[styles]
+  const renderNewProjectModal = function(visible, onClose, state, handlers) {
+    return React.createElement(Modal, {
+      visible: visible,
+      animationType: 'slide',
+      transparent: true,
+      onRequestClose: onClose
+    },
+      React.createElement(KeyboardAvoidingView, {
+        behavior: Platform.OS === 'ios' ? 'padding' : (Platform.OS === 'web' ? undefined : 'height'),
+        style: styles.modalOverlay
+      },
+        React.createElement(View, { style: styles.modalOverlay, componentId: 'new-project-modal-overlay' },
+          React.createElement(View, { style: [styles.modalContent, { backgroundColor: state.theme.colors.card }], componentId: 'new-project-modal-content' },
+            React.createElement(View, { style: styles.modalHeader },
+              React.createElement(Text, { style: [styles.modalTitle, { color: state.theme.colors.textPrimary }], componentId: 'modal-title' }, 'New Project'),
+              React.createElement(TouchableOpacity, {
+                onPress: onClose,
+                style: styles.closeButton,
+                componentId: 'modal-close'
+              },
+                React.createElement(MaterialIcons, { name: 'close', size: 24, color: state.theme.colors.textPrimary })
+              )
+            ),
+            React.createElement(View, { style: styles.inputGroup },
+              React.createElement(Text, { style: [styles.inputLabel, { color: state.theme.colors.textPrimary }] }, 'Project Name'),
+              React.createElement(TextInput, {
+                style: [styles.textInput, { backgroundColor: state.theme.colors.background, color: state.theme.colors.textPrimary, borderColor: state.theme.colors.border }],
+                value: state.newProjectName,
+                onChangeText: state.setNewProjectName,
+                placeholder: 'Enter project name',
+                placeholderTextColor: state.theme.colors.textSecondary,
+                componentId: 'project-name-input'
+              })
+            ),
+            React.createElement(View, { style: styles.inputGroup },
+              React.createElement(Text, { style: [styles.inputLabel, { color: state.theme.colors.textPrimary }] }, 'BPM'),
+              React.createElement(TextInput, {
+                style: [styles.textInput, { backgroundColor: state.theme.colors.background, color: state.theme.colors.textPrimary, borderColor: state.theme.colors.border }],
+                value: state.newProjectBpm,
+                onChangeText: state.setNewProjectBpm,
+                placeholder: '120',
+                placeholderTextColor: state.theme.colors.textSecondary,
+                keyboardType: 'numeric',
+                componentId: 'project-bpm-input'
+              })
+            ),
+            React.createElement(TouchableOpacity, {
+              style: [styles.createButton, { backgroundColor: state.theme.colors.primary }],
+              onPress: function() { handlers.createProject(state); },
+              componentId: 'create-project-button'
+            },
+              React.createElement(Text, { style: styles.createButtonText }, 'Create Project')
+            )
+          )
+        )
+      )
+    );
+  };
+  // @end:HomeScreen-Modal
 
-The **native app** is what you install on your device. Expo Go is a pre-built native app that works like a playground &mdash; it can't be changed after you install it. To add new native libraries or change things like your app name and icon, you need to build your own native app (a development build).
+  // @section:HomeScreen @depends:[HomeScreen-state,HomeScreen-handlers,HomeScreen-ProjectCard,HomeScreen-Modal,styles]
+  const HomeScreen = function() {
+    const state = useHomeScreenState();
+    const handlers = homeScreenHandlers;
 
-The **JavaScript bundle (`npx expo start`)** is where your app's UI code and business logic are. In production apps, there is one **main.js** bundle that is shipped with the app itself. In development, this JS bundle is live reloaded from your local machine. The main role of React Native is to provide a way for the JavaScript code to access the native APIs (Image, Camera, Notifications, and more). However, only APIs and libraries that were bundled in the **native app** can be used.
+    return React.createElement(View, { style: [styles.container, { backgroundColor: state.theme.colors.background }], componentId: 'home-screen' },
+      React.createElement(StatusBar, { barStyle: 'light-content', backgroundColor: state.theme.colors.background }),
+      React.createElement(View, { style: styles.header },
+        React.createElement(View, { style: styles.headerContent },
+          React.createElement(Image, {
+            source: { uri: 'IMAGE:professional-recording-studio-equipment' },
+            style: styles.headerImage,
+            componentId: 'home-header-image'
+          }),
+          React.createElement(Text, { style: [styles.headerTitle, { color: state.theme.colors.textPrimary }], componentId: 'home-header-title' }, 'Lacurnie DAW'),
+          React.createElement(Text, { style: [styles.headerSubtitle, { color: state.theme.colors.textSecondary }], componentId: 'home-header-subtitle' }, 'Professional Mobile Recording Studio')
+        )
+      ),
+      React.createElement(ScrollView, {
+        style: styles.scrollContent,
+        contentContainerStyle: { paddingBottom: Platform.OS === 'web' ? 90 : 100 }
+      },
+        React.createElement(View, { style: styles.section },
+          React.createElement(View, { style: styles.sectionHeader },
+            React.createElement(Text, { style: [styles.sectionTitle, { color: state.theme.colors.textPrimary }] }, 'Recent Projects'),
+            React.createElement(TouchableOpacity, {
+              style: [styles.newProjectButton, { backgroundColor: state.theme.colors.primary }],
+              onPress: function() { state.setShowNewProjectModal(true); },
+              componentId: 'new-project-fab'
+            },
+              React.createElement(MaterialIcons, { name: 'add', size: 20, color: '#FFFFFF' }),
+              React.createElement(Text, { style: styles.newProjectButtonText }, 'New')
+            )
+          ),
+          state.projects.map(function(project) {
+            return renderProjectCard(project, state.theme, function(id) { handlers.deleteProject(state, id); });
+          })
+        )
+      ),
+      renderNewProjectModal(state.showNewProjectModal, function() { state.setShowNewProjectModal(false); }, state, handlers)
+    );
+  };
+  // @end:HomeScreen
 
-</Collapsible>
+  // @section:TimelineScreen-state @depends:[ThemeContext]
+  const useTimelineScreenState = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+    
+    const tracksState = useState([
+      { id: 1, name: 'Kick', type: 'drum', volume: 0.8, pan: 0.0, muted: false, solo: false, color: '#FF6B6B' },
+      { id: 2, name: 'Snare', type: 'drum', volume: 0.7, pan: 0.0, muted: false, solo: false, color: '#4ECDC4' },
+      { id: 3, name: 'Hi-Hat', type: 'drum', volume: 0.6, pan: 0.2, muted: false, solo: false, color: '#45B7D1' },
+      { id: 4, name: 'Bass', type: 'synth', volume: 0.9, pan: -0.1, muted: false, solo: false, color: '#96CEB4' },
+      { id: 5, name: 'Lead', type: 'synth', volume: 0.5, pan: 0.1, muted: false, solo: false, color: '#FECA57' },
+      { id: 6, name: 'Vocals', type: 'audio', volume: 0.8, pan: 0.0, muted: false, solo: false, color: '#FF9FF3' }
+    ]);
+    const tracks = tracksState[0];
+    const setTracks = tracksState[1];
+    
+    const isPlayingState = useState(false);
+    const isPlaying = isPlayingState[0];
+    const setIsPlaying = isPlayingState[1];
+    
+    const currentTimeState = useState(0);
+    const currentTime = currentTimeState[0];
+    const setCurrentTime = currentTimeState[1];
+    
+    const bpmState = useState(120);
+    const bpm = bpmState[0];
+    const setBpm = bpmState[1];
+    
+    return {
+      theme: theme,
+      tracks: tracks,
+      setTracks: setTracks,
+      isPlaying: isPlaying,
+      setIsPlaying: setIsPlaying,
+      currentTime: currentTime,
+      setCurrentTime: setCurrentTime,
+      bpm: bpm,
+      setBpm: setBpm
+    };
+  };
+  // @end:TimelineScreen-state
 
-<VideoBoxLink
-  videoId="FdjczjkwQKE"
-  title="Expo Go & Development Builds: which should you use?"
-  description="In this tutorial video Beto explains what each of them is, and when to choose a development build."
-/>
+  // @section:TimelineScreen-handlers @depends:[TimelineScreen-state]
+  const timelineScreenHandlers = {
+    togglePlayback: function(state) {
+      state.setIsPlaying(function(prev) { return !prev; });
+    },
+    
+    toggleMute: function(state, trackId) {
+      state.setTracks(function(prevTracks) {
+        return prevTracks.map(function(track) {
+          if (track.id === trackId) {
+            return Object.assign({}, track, { muted: !track.muted });
+          }
+          return track;
+        });
+      });
+    },
+    
+    toggleSolo: function(state, trackId) {
+      state.setTracks(function(prevTracks) {
+        return prevTracks.map(function(track) {
+          if (track.id === trackId) {
+            return Object.assign({}, track, { solo: !track.solo });
+          }
+          return track;
+        });
+      });
+    },
+    
+    updateVolume: function(state, trackId, volume) {
+      state.setTracks(function(prevTracks) {
+        return prevTracks.map(function(track) {
+          if (track.id === trackId) {
+            return Object.assign({}, track, { volume: volume });
+          }
+          return track;
+        });
+      });
+    },
+    
+    updatePan: function(state, trackId, pan) {
+      state.setTracks(function(prevTracks) {
+        return prevTracks.map(function(track) {
+          if (track.id === trackId) {
+            return Object.assign({}, track, { pan: pan });
+          }
+          return track;
+        });
+      });
+    }
+  };
+  // @end:TimelineScreen-handlers
 
-## Why use a development build (a.k.a what _can't_ you do in Expo Go and why)
+  // @section:TimelineScreen-Transport @depends:[styles]
+  const renderTransportControls = function(state, handlers) {
+    return React.createElement(View, { style: [styles.transportBar, { backgroundColor: state.theme.colors.card, borderColor: state.theme.colors.border }] },
+      React.createElement(TouchableOpacity, {
+        style: [styles.transportButton, { backgroundColor: state.theme.colors.accent }],
+        onPress: function() { state.setCurrentTime(0); },
+        componentId: 'transport-stop'
+      },
+        React.createElement(MaterialIcons, { name: 'stop', size: 24, color: '#FFFFFF' })
+      ),
+      React.createElement(TouchableOpacity, {
+        style: [styles.transportButton, { backgroundColor: state.isPlaying ? state.theme.colors.error : state.theme.colors.success }],
+        onPress: function() { handlers.togglePlayback(state); },
+        componentId: 'transport-play-pause'
+      },
+        React.createElement(MaterialIcons, { name: state.isPlaying ? 'pause' : 'play-arrow', size: 24, color: '#FFFFFF' })
+      ),
+      React.createElement(TouchableOpacity, {
+        style: [styles.transportButton, { backgroundColor: state.theme.colors.accent }],
+        componentId: 'transport-record'
+      },
+        React.createElement(MaterialIcons, { name: 'fiber-manual-record', size: 24, color: state.theme.colors.error })
+      ),
+      React.createElement(View, { style: styles.timeDisplay },
+        React.createElement(Text, { style: [styles.timeText, { color: state.theme.colors.textPrimary }] }, '00:' + (state.currentTime < 10 ? '0' : '') + state.currentTime),
+        React.createElement(Text, { style: [styles.bpmText, { color: state.theme.colors.textSecondary }] }, state.bpm + ' BPM')
+      )
+    );
+  };
+  // @end:TimelineScreen-Transport
 
-Expo Go is a playground for students and learners to understand the basics of React Native. It's limited and not useful for building production-grade projects, so most apps will convert to using development builds. It helps to know exactly what is _impossible_ in Expo Go and _why_, so you can make an informed decision on when and why to make this move.
+  // @section:TimelineScreen-TrackItem @depends:[styles]
+  const renderTrackItem = function(track, state, handlers) {
+    return React.createElement(View, {
+      key: track.id,
+      style: [styles.trackItem, { backgroundColor: state.theme.colors.card, borderColor: state.theme.colors.border }],
+      componentId: 'track-item-' + track.id
+    },
+      React.createElement(View, { style: styles.trackHeader },
+        React.createElement(View, { style: [styles.trackColor, { backgroundColor: track.color }] }),
+        React.createElement(Text, { style: [styles.trackName, { color: state.theme.colors.textPrimary }] }, track.name),
+        React.createElement(Text, { style: [styles.trackType, { color: state.theme.colors.textSecondary }] }, track.type.toUpperCase())
+      ),
+      React.createElement(View, { style: styles.trackControls },
+        React.createElement(TouchableOpacity, {
+          style: [styles.trackButton, { backgroundColor: track.muted ? state.theme.colors.error : state.theme.colors.accent }],
+          onPress: function() { handlers.toggleMute(state, track.id); },
+          componentId: 'track-mute-' + track.id
+        },
+          React.createElement(Text, { style: styles.trackButtonText }, 'M')
+        ),
+        React.createElement(TouchableOpacity, {
+          style: [styles.trackButton, { backgroundColor: track.solo ? state.theme.colors.warning : state.theme.colors.accent }],
+          onPress: function() { handlers.toggleSolo(state, track.id); },
+          componentId: 'track-solo-' + track.id
+        },
+          React.createElement(Text, { style: styles.trackButtonText }, 'S')
+        )
+      ),
+      React.createElement(View, { style: styles.trackTimeline },
+        React.createElement(View, { style: [styles.timelineBackground, { backgroundColor: state.theme.colors.background }] }),
+        React.createElement(View, { style: [styles.audioClip, { backgroundColor: track.color + '80' }] },
+          React.createElement(Text, { style: [styles.clipText, { color: state.theme.colors.textPrimary }] }, track.name + ' Clip')
+        )
+      )
+    );
+  };
+  // @end:TimelineScreen-TrackItem
 
-<Collapsible summary="Use libraries with native code that aren't in Expo Go">
+  // @section:TimelineScreen @depends:[TimelineScreen-state,TimelineScreen-handlers,TimelineScreen-Transport,TimelineScreen-TrackItem,styles]
+  const TimelineScreen = function() {
+    const state = useTimelineScreenState();
+    const handlers = timelineScreenHandlers;
 
-Consider [`react-native-webview`](/versions/latest/sdk/webview/) as an example, a library that contains native code, but [is included in Expo Go](https://github.com/expo/expo/blob/main/apps/expo-go/package.json#L23). When you run `npx expo install react-native-webview` command in your project, it will install the library in your **node_modules** directory, which includes both the JS code and the native code. But the JS bundle you are building _only_ uses the JS code. Then, your JS bundle gets uploaded to Expo Go, and it interacts with the native code that was already bundled with the app.
+    return React.createElement(View, { style: [styles.container, { backgroundColor: state.theme.colors.background }], componentId: 'timeline-screen' },
+      React.createElement(StatusBar, { barStyle: 'light-content', backgroundColor: state.theme.colors.background }),
+      React.createElement(View, { style: styles.timelineHeader },
+        React.createElement(Text, { style: [styles.screenTitle, { color: state.theme.colors.textPrimary }], componentId: 'timeline-title' }, 'Timeline'),
+        React.createElement(TouchableOpacity, {
+          style: [styles.headerButton, { backgroundColor: state.theme.colors.primary }],
+          componentId: 'add-track-button'
+        },
+          React.createElement(MaterialIcons, { name: 'add', size: 20, color: '#FFFFFF' }),
+          React.createElement(Text, { style: [styles.headerButtonText, { color: '#FFFFFF' }] }, 'Track')
+        )
+      ),
+      renderTransportControls(state, handlers),
+      React.createElement(ScrollView, {
+        style: styles.tracksContainer,
+        contentContainerStyle: { paddingBottom: Platform.OS === 'web' ? 90 : 100 }
+      },
+        state.tracks.map(function(track) {
+          return renderTrackItem(track, state, handlers);
+        })
+      )
+    );
+  };
+  // @end:TimelineScreen
 
+  // @section:MixerScreen-state @depends:[ThemeContext]
+  const useMixerScreenState = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+    
+    const channelsState = useState([
+      { id: 1, name: 'Kick', volume: 0.8, pan: 0.0, gain: 2.1, high: 0.0, mid: 0.0, low: 1.2, solo: false, muted: false },
+      { id: 2, name: 'Snare', volume: 0.7, pan: 0.0, gain: 1.8, high: 0.5, mid: -0.3, low: 0.0, solo: false, muted: false },
+      { id: 3, name: 'Hi-Hat', volume: 0.6, pan: 0.2, gain: 1.5, high: 1.0, mid: 0.2, low: -0.5, solo: false, muted: false },
+      { id: 4, name: 'Bass', volume: 0.9, pan: -0.1, gain: 2.5, high: -0.8, mid: 0.0, low: 2.0, solo: false, muted: false }
+    ]);
+    const channels = channelsState[0];
+    const setChannels = channelsState[1];
+    
+    const masterVolumeState = useState(0.85);
+    const masterVolume = masterVolumeState[0];
+    const setMasterVolume = masterVolumeState[1];
+    
+    return {
+      theme: theme,
+      channels: channels,
+      setChannels: setChannels,
+      masterVolume: masterVolume,
+      setMasterVolume: setMasterVolume
+    };
+  };
+  // @end:MixerScreen-state
+
+  // @section:MixerScreen-handlers @depends:[MixerScreen-state]
+  const mixerScreenHandlers = {
+    updateChannelProperty: function(state, channelId, property, value) {
+      state.setChannels(function(prevChannels) {
+        return prevChannels.map(function(channel) {
+          if (channel.id === channelId) {
+            var updated = Object.assign({}, channel);
+            updated[property] = value;
+            return updated;
+          }
+          return channel;
+        });
+      });
+    },
+    
+    toggleChannelMute: function(state, channelId) {
+      this.updateChannelProperty(state, channelId, 'muted', !state.channels.find(function(c) { return c.id === channelId; }).muted);
+    },
+    
+    toggleChannelSolo: function(state, channelId) {
+      this.updateChannelProperty(state, channelId, 'solo', !state.channels.find(function(c) { return c.id === channelId; }).solo);
+    }
+  };
+  // @end:MixerScreen-handlers
+
+  // @section:MixerScreen-ChannelStrip @depends:[styles]
+  const renderChannelStrip = function(channel, state, handlers) {
+    return React.createElement(View, {
+      key: channel.id,
+      style: [styles.channelStrip, { backgroundColor: state.theme.colors.card, borderColor: state.theme.colors.border }],
+      componentId: 'channel-strip-' + channel.id
+    },
+      React.createElement(Text, { style: [styles.channelName, { color: state.theme.colors.textPrimary }] }, channel.name),
+      React.createElement(View, { style: styles.eqSection },
+        React.createElement(Text, { style: [styles.eqLabel, { color: state.theme.colors.textSecondary }] }, 'HIGH'),
+        React.createElement(View, { style: [styles.knobContainer, { backgroundColor: state.theme.colors.background }] },
+          React.createElement(Text, { style: [styles.knobValue, { color: state.theme.colors.textPrimary }] }, channel.high.toFixed(1))
+        ),
+        React.createElement(Text, { style: [styles.eqLabel, { color: state.theme.colors.textSecondary }] }, 'MID'),
+        React.createElement(View, { style: [styles.knobContainer, { backgroundColor: state.theme.colors.background }] },
+          React.createElement(Text, { style: [styles.knobValue, { color: state.theme.colors.textPrimary }] }, channel.mid.toFixed(1))
+        ),
+        React.createElement(Text, { style: [styles.eqLabel, { color: state.theme.colors.textSecondary }] }, 'LOW'),
+        React.createElement(View, { style: [styles.knobContainer, { backgroundColor: state.theme.colors.background }] },
+          React.createElement(Text, { style: [styles.knobValue, { color: state.theme.colors.textPrimary }] }, channel.low.toFixed(1))
+        )
+      ),
+      React.createElement(View, { style: styles.faderSection },
+        React.createElement(View, { style: [styles.faderTrack, { backgroundColor: state.theme.colors.background }] },
+          React.createElement(View, {
+            style: [styles.faderHandle, {
+              backgroundColor: state.theme.colors.primary,
+              bottom: (channel.volume * 100) + '%'
+            }]
+          })
+        ),
+        React.createElement(Text, { style: [styles.faderValue, { color: state.theme.colors.textSecondary }] }, Math.round(channel.volume * 100))
+      ),
+      React.createElement(View, { style: styles.channelButtons },
+        React.createElement(TouchableOpacity, {
+          style: [styles.channelButton, { backgroundColor: channel.solo ? state.theme.colors.warning : state.theme.colors.accent }],
+          onPress: function() { handlers.toggleChannelSolo(state, channel.id); },
+          componentId: 'channel-solo-' + channel.id
+        },
+          React.createElement(Text, { style: styles.channelButtonText }, 'S')
+        ),
+        React.createElement(TouchableOpacity, {
+          style: [styles.channelButton, { backgroundColor: channel.muted ? state.theme.colors.error : state.theme.colors.accent }],
+          onPress: function() { handlers.toggleChannelMute(state, channel.id); },
+          componentId: 'channel-mute-' + channel.id
+        },
+          React.createElement(Text, { style: styles.channelButtonText }, 'M')
+        )
+      )
+    );
+  };
+  // @end:MixerScreen-ChannelStrip
+
+  // @section:MixerScreen-MasterSection @depends:[styles]
+  const renderMasterSection = function(state) {
+    return React.createElement(View, { style: [styles.masterSection, { backgroundColor: state.theme.colors.card, borderColor: state.theme.colors.border }] },
+      React.createElement(Text, { style: [styles.masterTitle, { color: state.theme.colors.textPrimary }] }, 'MASTER'),
+      React.createElement(View, { style: styles.masterControls },
+        React.createElement(View, { style: styles.masterFader },
+          React.createElement(View, { style: [styles.faderTrack, { backgroundColor: state.theme.colors.background, height: 150 }] },
+            React.createElement(View, {
+              style: [styles.faderHandle, {
+                backgroundColor: state.theme.colors.primary,
+                bottom: (state.masterVolume * 100) + '%'
+              }]
+            })
+          ),
+          React.createElement(Text, { style: [styles.faderValue, { color: state.theme.colors.textSecondary }] }, Math.round(state.masterVolume * 100))
+        ),
+        React.createElement(View, { style: styles.masterMeters },
+          React.createElement(View, { style: [styles.meterBar, { backgroundColor: state.theme.colors.success }] }),
+          React.createElement(View, { style: [styles.meterBar, { backgroundColor: state.theme.colors.success }] })
+        )
+      )
+    );
+  };
+  // @end:MixerScreen-MasterSection
+
+  // @section:MixerScreen @depends:[MixerScreen-state,MixerScreen-handlers,MixerScreen-ChannelStrip,MixerScreen-MasterSection,styles]
+  const MixerScreen = function() {
+    const state = useMixerScreenState();
+    const handlers = mixerScreenHandlers;
+
+    return React.createElement(View, { style: [styles.container, { backgroundColor: state.theme.colors.background }], componentId: 'mixer-screen' },
+      React.createElement(StatusBar, { barStyle: 'light-content', backgroundColor: state.theme.colors.background }),
+      React.createElement(View, { style: styles.mixerHeader },
+        React.createElement(Text, { style: [styles.screenTitle, { color: state.theme.colors.textPrimary }], componentId: 'mixer-title' }, 'Mixer'),
+        React.createElement(TouchableOpacity, {
+          style: [styles.headerButton, { backgroundColor: state.theme.colors.primary }],
+          componentId: 'mixer-settings'
+        },
+          React.createElement(MaterialIcons, { name: 'settings', size: 20, color: '#FFFFFF' })
+        )
+      ),
+      React.createElement(ScrollView, {
+        horizontal: true,
+        style: { flexGrow: 1 },
+        contentContainerStyle: { paddingHorizontal: 16, paddingBottom: Platform.OS === 'web' ? 90 : 100 },
+        showsHorizontalScrollIndicator: false
+      },
+        React.createElement(View, { style: styles.mixerContainer },
+          state.channels.map(function(channel) {
+            return renderChannelStrip(channel, state, handlers);
+          }),
+          renderMasterSection(state)
+        )
+      )
+    );
+  };
+  // @end:MixerScreen
+
+  // @section:RecordingScreen-state @depends:[ThemeContext]
+  const useRecordingScreenState = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+    
+    const isRecordingState = useState(false);
+    const isRecording = isRecordingState[0];
+    const setIsRecording = isRecordingState[1];
+    
+    const recordingTimeState = useState(0);
+    const recordingTime = recordingTimeState[0];
+    const setRecordingTime = recordingTimeState[1];
+    
+    const recordingLevelState = useState(0.5);
+    const recordingLevel = recordingLevelState[0];
+    const setRecordingLevel = recordingLevelState[1];
+    
+    const selectedInputState = useState('microphone');
+    const selectedInput = selectedInputState[0];
+    const setSelectedInput = selectedInputState[1];
+    
+    const recordingsState = useState([
+      { id: 1, name: 'Vocal Take 1', duration: '2:34', date: '2024-01-15', size: '5.2 MB' },
+      { id: 2, name: 'Guitar Solo', duration: '1:45', date: '2024-01-14', size: '3.8 MB' },
+      { id: 3, name: 'Harmony Layer', duration: '2:12', date: '2024-01-13', size: '4.5 MB' }
+    ]);
+    const recordings = recordingsState[0];
+    const setRecordings = recordingsState[1];
+    
+    return {
+      theme: theme,
+      isRecording: isRecording,
+      setIsRecording: setIsRecording,
+      recordingTime: recordingTime,
+      setRecordingTime: setRecordingTime,
+      recordingLevel: recordingLevel,
+      setRecordingLevel: setRecordingLevel,
+      selectedInput: selectedInput,
+      setSelectedInput: setSelectedInput,
+      recordings: recordings,
+      setRecordings: setRecordings
+    };
+  };
+  // @end:RecordingScreen-state
+
+  // @section:RecordingScreen-handlers @depends:[RecordingScreen-state]
+  const recordingScreenHandlers = {
+    toggleRecording: function(state) {
+      if (state.isRecording) {
+        state.setIsRecording(false);
+        state.setRecordingTime(0);
+        
+        const newRecording = {
+          id: Date.now(),
+          name: 'Recording ' + (state.recordings.length + 1),
+          duration: '0:' + (state.recordingTime < 10 ? '0' : '') + state.recordingTime,
+          date: new Date().toISOString().split('T')[0],
+          size: '2.1 MB'
+        };
+        
+        state.setRecordings(function(prev) { return [newRecording].concat(prev); });
+        Platform.OS === 'web' ? window.alert('Recording saved!') : Alert.alert('Success', 'Recording saved!');
+      } else {
+        state.setIsRecording(true);
+        state.setRecordingTime(0);
+      }
+    },
+    
+    deleteRecording: function(state, recordingId) {
+      const confirmDelete = function() {
+        state.setRecordings(function(prev) {
+          return prev.filter(function(recording) { return recording.id !== recordingId; });
+        });
+      };
+      
+      if (Platform.OS === 'web') {
+        if (window.confirm('Delete this recording?')) {
+          confirmDelete();
+        }
+      } else {
+        Alert.alert('Confirm Delete', 'Delete this recording?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+        ]);
+      }
+    }
+  };
+  // @end:RecordingScreen-handlers
+
+  // @section:RecordingScreen-Controls @depends:[styles]
+  const renderRecordingControls = function(state, handlers) {
+    return React.createElement(View, { style: [styles.recordingControls, { backgroundColor: state.theme.colors.card, borderColor: state.theme.colors.border }] },
+      React.createElement(View, { style: styles.inputSection },
+        React.createElement(Text, { style: [styles.inputLabel, { color: state.theme.colors.textPrimary }] }, 'Input Source'),
+        React.createElement(View, { style: styles.inputOptions },
+          React.createElement(TouchableOpacity, {
+            style: [styles.inputOption, {
+              backgroundColor: state.selectedInput === 'microphone' ? state.theme.colors.primary : state.theme.colors.accent
+            }],
+            onPress: function() { state.setSelectedInput('microphone'); },
+            componentId: 'input-microphone'
+          },
+            React.createElement(MaterialIcons, { name: 'mic', size: 24, color: '#FFFFFF' }),
+            React.createElement(Text, { style: styles.inputOptionText }, 'Mic')
+          ),
+          React.createElement(TouchableOpacity, {
+            style: [styles.inputOption, {
+              backgroundColor: state.selectedInput === 'line' ? state.theme.colors.primary : state.theme.colors.accent
+            }],
+            onPress: function() { state.setSelectedInput('line'); },
+            componentId: 'input-line'
+          },
+            React.createElement(MaterialIcons, { name: 'cable', size: 24, color: '#FFFFFF' }),
+            React.createElement(Text, { style: styles.inputOptionText }, 'Line')
+          )
+        )
+      ),
+      React.createElement(View, { style: styles.levelMeter },
+        React.createElement(Text, { style: [styles.levelLabel, { color: state.theme.colors.textPrimary }] }, 'Input Level'),
+        React.createElement(View, { style: [styles.meterContainer, { backgroundColor: state.theme.colors.background }] },
+          React.createElement(View, {
+            style: [styles.meterFill, {
+              backgroundColor: state.recordingLevel > 0.8 ? state.theme.colors.error : state.theme.colors.success,
+              width: (state.recordingLevel * 100) + '%'
+            }]
+          })
+        )
+      ),
+      React.createElement(TouchableOpacity, {
+        style: [styles.recordButton, {
+          backgroundColor: state.isRecording ? state.theme.colors.error : state.theme.colors.primary,
+          transform: [{ scale: state.isRecording ? 1.1 : 1.0 }]
+        }],
+        onPress: function() { handlers.toggleRecording(state); },
+        componentId: 'main-record-button'
+      },
+        React.createElement(MaterialIcons, {
+          name: state.isRecording ? 'stop' : 'fiber-manual-record',
+          size: 48,
+          color: '#FFFFFF'
+        })
+      ),
+      state.isRecording ? React.createElement(View, { style: styles.recordingInfo },
+        React.createElement(Text, { style: [styles.recordingTime, { color: state.theme.colors.error }] }, 'REC ' + Math.floor(state.recordingTime / 60) + ':' + (state.recordingTime % 60 < 10 ? '0' : '') + (state.recordingTime % 60)),
+        React.createElement(View, { style: styles.recordingIndicator })
+      ) : null
+    );
+  };
+  // @end:RecordingScreen-Controls
+
+  // @section:RecordingScreen-RecordingsList @depends:[styles]
+  const renderRecordingsList = function(recordings, theme, onDelete) {
+    return React.createElement(View, { style: styles.recordingsSection },
+      React.createElement(Text, { style: [styles.sectionTitle, { color: theme.colors.textPrimary }] }, 'Recent Recordings'),
+      recordings.map(function(recording) {
+        return React.createElement(View, {
+          key: recording.id,
+          style: [styles.recordingItem, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }],
+          componentId: 'recording-item-' + recording.id
+        },
+          React.createElement(View, { style: styles.recordingInfo },
+            React.createElement(Text, { style: [styles.recordingName, { color: theme.colors.textPrimary }] }, recording.name),
+            React.createElement(View, { style: styles.recordingMeta },
+              React.createElement(Text, { style: [styles.recordingDetail, { color: theme.colors.textSecondary }] }, recording.duration),
+              React.createElement(Text, { style: [styles.recordingDetail, { color: theme.colors.textSecondary }] }, recording.date),
+              React.createElement(Text, { style: [styles.recordingDetail, { color: theme.colors.textSecondary }] }, recording.size)
+            )
+          ),
+          React.createElement(View, { style: styles.recordingActions },
+            React.createElement(TouchableOpacity, {
+              style: [styles.playButton, { backgroundColor: theme.colors.primary }],
+              componentId: 'play-recording-' + recording.id
+            },
+              React.createElement(MaterialIcons, { name: 'play-arrow', size: 20, color: '#FFFFFF' })
+            ),
+            React.createElement(TouchableOpacity, {
+              style: [styles.deleteButton, { backgroundColor: theme.colors.error }],
+              onPress: function() { onDelete(recording.id); },
+              componentId: 'delete-recording-' + recording.id
+            },
+              React.createElement(MaterialIcons, { name: 'delete', size: 20, color: '#FFFFFF' })
+            )
+          )
+        );
+      })
+    );
+  };
+  // @end:RecordingScreen-RecordingsList
+
+  // @section:RecordingScreen @depends:[RecordingScreen-state,RecordingScreen-handlers,RecordingScreen-Controls,RecordingScreen-RecordingsList,styles]
+  const RecordingScreen = function() {
+    const state = useRecordingScreenState();
+    const handlers = recordingScreenHandlers;
+
+    useEffect(function() {
+      let interval;
+      if (state.isRecording) {
+        interval = setInterval(function() {
+          state.setRecordingTime(function(prev) { return prev + 1; });
+          state.setRecordingLevel(0.3 + Math.random() * 0.4);
+        }, 1000);
+      }
+      return function() {
+        if (interval) clearInterval(interval);
+      };
+    }, [state.isRecording]);
+
+    return React.createElement(View, { style: [styles.container, { backgroundColor: state.theme.colors.background }], componentId: 'recording-screen' },
+      React.createElement(StatusBar, { barStyle: 'light-content', backgroundColor: state.theme.colors.background }),
+      React.createElement(View, { style: styles.recordingHeader },
+        React.createElement(Text, { style: [styles.screenTitle, { color: state.theme.colors.textPrimary }], componentId: 'recording-title' }, 'Recording'),
+        React.createElement(Image, {
+          source: { uri: 'IMAGE:professional-microphone-recording-studio' },
+          style: styles.recordingHeaderImage,
+          componentId: 'recording-header-image'
+        })
+      ),
+      React.createElement(ScrollView, {
+        style: styles.scrollContent,
+        contentContainerStyle: { paddingBottom: Platform.OS === 'web' ? 90 : 100 }
+      },
+        renderRecordingControls(state, handlers),
+        renderRecordingsList(state.recordings, state.theme, function(id) { handlers.deleteRecording(state, id); })
+      )
+    );
+  };
+  // @end:RecordingScreen
+
+  // @section:SettingsScreen @depends:[ThemeContext,styles]
+  const SettingsScreen = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+
+    const settingsOptions = [
+      { id: 1, title: 'Audio Settings', subtitle: 'Sample rate, buffer size, latency', icon: 'audiotrack' },
+      { id: 2, title: 'MIDI Configuration', subtitle: 'Connect and configure MIDI devices', icon: 'piano' },
+      { id: 3, title: 'Export Settings', subtitle: 'Default export format and quality', icon: 'file-download' },
+      { id: 4, title: 'Cloud Sync', subtitle: 'Backup and sync your projects', icon: 'cloud' },
+      { id: 5, title: 'Plugins', subtitle: 'Manage audio effects and instruments', icon: 'extension' },
+      { id: 6, title: 'About', subtitle: 'Version info and support', icon: 'info' }
+    ];
+
+    return React.createElement(View, { style: [styles.container, { backgroundColor: theme.colors.background }], componentId: 'settings-screen' },
+      React.createElement(StatusBar, { barStyle: 'light-content', backgroundColor: theme.colors.background }),
+      React.createElement(View, { style: styles.settingsHeader },
+        React.createElement(Text, { style: [styles.screenTitle, { color: theme.colors.textPrimary }], componentId: 'settings-title' }, 'Settings'),
+        React.createElement(Image, {
+          source: { uri: 'IMAGE:audio-mixing-console-controls' },
+          style: styles.settingsHeaderImage,
+          componentId: 'settings-header-image'
+        })
+      ),
+      React.createElement(ScrollView, {
+        style: styles.scrollContent,
+        contentContainerStyle: { paddingBottom: Platform.OS === 'web' ? 90 : 100 }
+      },
+        React.createElement(View, { style: styles.settingsSection },
+          settingsOptions.map(function(option) {
+            return React.createElement(TouchableOpacity, {
+              key: option.id,
+              style: [styles.settingsItem, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }],
+              componentId: 'settings-item-' + option.id
+            },
+              React.createElement(View, { style: styles.settingsItemIcon },
+                React.createElement(MaterialIcons, { name: option.icon, size: 24, color: theme.colors.primary })
+              ),
+              React.createElement(View, { style: styles.settingsItemContent },
+                React.createElement(Text, { style: [styles.settingsItemTitle, { color: theme.colors.textPrimary }] }, option.title),
+                React.createElement(Text, { style: [styles.settingsItemSubtitle, { color: theme.colors.textSecondary }] }, option.subtitle)
+              ),
+              React.createElement(MaterialIcons, { name: 'chevron-right', size: 24, color: theme.colors.textSecondary })
+            );
+          })
+        )
+      )
+    );
+  };
+  // @end:SettingsScreen
+
+  // @section:TabNavigator @depends:[navigation-setup,HomeScreen,TimelineScreen,MixerScreen,RecordingScreen,SettingsScreen]
+  const TabNavigator = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+
+    return React.createElement(Tab.Navigator, {
+      screenOptions: function(route) {
+        return {
+          tabBarIcon: function(focused, color, size) {
+            let iconName;
+            const routeName = route.route.name;
+            
+            if (routeName === 'Home') {
+              iconName = 'home';
+            } else if (routeName === 'Timeline') {
+              iconName = 'timeline';
+            } else if (routeName === 'Mixer') {
+              iconName = 'tune';
+            } else if (routeName === 'Recording') {
+              iconName = 'mic';
+            } else if (routeName === 'Settings') {
+              iconName = 'settings';
+            }
+
+            return React.createElement(MaterialIcons, {
+              name: iconName,
+              size: size,
+              color: color
+            });
+          },
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.textSecondary,
+          tabBarStyle: {
+            backgroundColor: theme.colors.card,
+            borderTopColor: theme.colors.border,
+            borderTopWidth: 1,
+            position: 'absolute',
+            bottom: 0
+          },
+          headerShown: false
+        };
+      }
+    },
+      React.createElement(Tab.Screen, { name: 'Home', component: HomeScreen }),
+      React.createElement(Tab.Screen, { name: 'Timeline', component: TimelineScreen }),
+      React.createElement(Tab.Screen, { name: 'Mixer', component: MixerScreen }),
+      React.createElement(Tab.Screen, { name: 'Recording', component: RecordingScreen }),
+      React.createElement(Tab.Screen, { name: 'Settings', component: SettingsScreen })
+    );
+  };
+  // @end:TabNavigator
+
+  // @section:styles @depends:[theme]
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1
+    },
+    header: {
+      padding: 20,
+      alignItems: 'center'
+    },
+    headerContent: {
+      alignItems: 'center'
+    },
+    headerImage: {
+      width: '100%',
+      height: 120,
+      borderRadius: 12,
+      marginBottom: 16
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      marginBottom: 8
+    },
+    headerSubtitle: {
+      fontSize: 16,
+      textAlign: 'center'
+    },
+    scrollContent: {
+      flex: 1
+    },
+    section: {
+      padding: 20
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: 'bold'
+    },
+    newProjectButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20
+    },
+    newProjectButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+      marginLeft: 4
+    },
+    projectCard: {
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1
+    },
+    projectHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12
+    },
+    projectName: {
+      fontSize: 18,
+      fontWeight: '600'
+    },
+    deleteButton: {
+      padding: 8,
+      borderRadius: 8
+    },
+    projectStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 12
+    },
+    statItem: {
+      flexDirection: 'row',
+      alignItems: 'center'
+    },
+    statText: {
+      fontSize: 14,
+      marginLeft: 4
+    },
+    lastModified: {
+      fontSize: 12,
+      marginBottom: 12
+    },
+    openButton: {
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center'
+    },
+    openButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '600'
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center'
+    },
+    modalContent: {
+      width: '90%',
+      borderRadius: 16,
+      padding: 24
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold'
+    },
+    closeButton: {
+      padding: 8
+    },
+    inputGroup: {
+      marginBottom: 20
+    },
+    inputLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 8
+    },
+    textInput: {
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16
+    },
+    createButton: {
+      paddingVertical: 16,
+      borderRadius: 8,
+      alignItems: 'center'
+    },
+    createButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600'
+    },
+    screenTitle: {
+      fontSize: 24,
+      fontWeight: 'bold'
+    },
+    timelineHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20
+    },
+    headerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8
+    },
+    headerButtonText: {
+      marginLeft: 4,
+      fontWeight: '600'
+    },
+    transportBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderTopWidth: 1,
+      borderBottomWidth: 1
+    },
+    transportButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12
+    },
+    timeDisplay: {
+      flex: 1,
+      alignItems: 'center'
+    },
+    timeText: {
+      fontSize: 20,
+      fontWeight: 'bold'
+    },
+    bpmText: {
+      fontSize: 14
+    },
+    tracksContainer: {
+      flex: 1,
+      padding: 16
+    },
+    trackItem: {
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      overflow: 'hidden'
+    },
+    trackHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12
+    },
+    trackColor: {
+      width: 4,
+      height: 24,
+      borderRadius: 2,
+      marginRight: 12
+    },
+    trackName: {
+      fontSize: 16,
+      fontWeight: '600',
+      flex: 1
+    },
+    trackType: {
+      fontSize: 12,
+      fontWeight: '500'
+    },
+    trackControls: {
+      flexDirection: 'row',
+      paddingHorizontal: 12,
+      paddingBottom: 8
+    },
+    trackButton: {
+      width: 32,
+      height: 24,
+      borderRadius: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8
+    },
+    trackButtonText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: 'bold'
+    },
+    trackTimeline: {
+      height: 60,
+      position: 'relative'
+    },
+    timelineBackground: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
+    },
+    audioClip: {
+      position: 'absolute',
+      left: 20,
+      top: 10,
+      width: 120,
+      height: 40,
+      borderRadius: 4,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    clipText: {
+      fontSize: 12,
+      fontWeight: '500'
+    },
+    mixerHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 20
+    },
+    mixerContainer: {
+      flexDirection: 'row',
+      paddingVertical: 20
+    },
+    channelStrip: {
+      width: 80,
+      marginRight: 16,
+      borderRadius: 12,
+      padding: 12,
+      borderWidth: 1,
+      alignItems: 'center'
+    },
+    channelName: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      marginBottom: 16,
+      textAlign: 'center'
+    },
+    eqSection: {
+      alignItems: 'center',
+      marginBottom: 20
+    },
+    eqLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      marginBottom: 4
+    },
+    knobContainer: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12
+    },
+    knobValue: {
+      fontSize: 10,
+      fontWeight: 'bold'
+    },
+    faderSection: {
+      alignItems: 'center',
+      marginBottom: 16
+    },
+    faderTrack: {
+      width: 8,
+      height: 100,
+      borderRadius: 4,
+      position: 'relative'
+    },
+    faderHandle: {
+      width: 16,
+      height: 8,
+      borderRadius: 4,
+      position: 'absolute',
+      left: -4
+    },
+    faderValue: {
+      fontSize: 10,
+      marginTop: 4
+    },
+    channelButtons: {
+      alignItems: 'center'
+    },
+    channelButton: {
+      width: 24,
+      height: 20,
+      borderRadius: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4
+    },
+    channelButtonText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: 'bold'
+    },
+    masterSection: {
+      width: 100,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      alignItems: 'center'
+    },
+    masterTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      marginBottom: 20
+    },
+    masterControls: {
+      alignItems: 'center'
+    },
+    masterFader: {
+      alignItems: 'center',
+      marginBottom: 16
+    },
+    masterMeters: {
+      flexDirection: 'row'
+    },
+    meterBar: {
+      width: 8,
+      height: 60,
+      borderRadius: 4,
+      marginHorizontal: 2
+    },
+    recordingHeader: {
+      alignItems: 'center',
+      padding: 20
+    },
+    recordingHeaderImage: {
+      width: '100%',
+      height: 100,
+      borderRadius: 12,
+      marginTop: 16
+    },
+    recordingControls: {
+      margin: 20,
+      padding: 20,
+      borderRadius: 16,
+      borderWidth: 1
+    },
+    inputSection: {
+      marginBottom: 24
+    },
+    inputOptions: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginTop: 12
+    },
+    inputOption: {
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+      minWidth: 80
+    },
+    inputOptionText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      marginTop: 4,
+      fontWeight: '600'
+    },
+    levelMeter: {
+      marginBottom: 24
+    },
+    levelLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 8
+    },
+    meterContainer: {
+      height: 20,
+      borderRadius: 10,
+      overflow: 'hidden'
+    },
+    meterFill: {
+      height: '100%',
+      borderRadius: 10
+    },
+    recordButton: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+      marginBottom: 20
+    },
+    recordingInfo: {
+      alignItems: 'center'
+    },
+    recordingTime: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 8
+    },
+    recordingIndicator: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: '#EF4444'
+    },
+    recordingsSection: {
+      margin: 20
+    },
+    recordingItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1
+    },
+    recordingName: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 4
+    },
+    recordingMeta: {
+      flexDirection: 'row'
+    },
+    recordingDetail: {
+      fontSize: 12,
+      marginRight: 12
+    },
+    recordingActions: {
+      flexDirection: 'row'
+    },
+    playButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8
+    },
+    settingsHeader: {
+      alignItems: 'center',
+      padding: 20
+    },
+    settingsHeaderImage: {
+      width: '100%',
+      height: 100,
+      borderRadius: 12,
+      marginTop: 16
+    },
+    settingsSection: {
+      padding: 20
+    },
+    settingsItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      borderRadius: 12,
+      marginBottom: 12,
+      borderWidth: 1
+    },
+    settingsItemIcon: {
+      width: 40,
+      alignItems: 'center'
+    },
+    settingsItemContent: {
+      flex: 1,
+      marginLeft: 16
+    },
+    settingsItemTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 2
+    },
+    settingsItemSubtitle: {
+      fontSize: 14
+    }
+  });
+  // @end:styles
+
+  // @section:return @depends:[ThemeProvider,TabNavigator]
+  return React.createElement(ThemeProvider, null,
+    React.createElement(View, { style: { flex: 1, width: '100%', height: '100%' } },
+      React.createElement(StatusBar, { barStyle: 'light-content' }),
+      React.createElement(TabNavigator)
+    )
+  );
+  // @end:return
+};
+return ComponentFunction;
 Instead, when you try to use a library that is not included, for example, [`react-native-firebase`](/guides/using-firebase/#using-react-native-firebase), then you can use the JS code and hot reload the new bundle into Expo Go but it will immediately error because the JS code tries to call the native code from the React Native Firebase package that does not exist in Expo Go. There is no way to get the native code into the Expo Go app unless it was already included in the bundle that was uploaded to the app stores.
 
 </Collapsible>
